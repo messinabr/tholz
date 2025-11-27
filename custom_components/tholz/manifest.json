@@ -1,0 +1,11 @@
+{
+  "domain": "tholz",
+  "name": "Tholz LuxPool",
+  "codeowners": [],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/seu-usuario/tholz-socket",
+  "iot_class": "local_polling",
+  "requirements": [],
+  "version": "1.0.3"
+}

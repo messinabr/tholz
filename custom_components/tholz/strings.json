@@ -1,0 +1,20 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Conectar ao Tholz",
+        "description": "Insira o IP do seu controlador Tholz LuxPool.",
+        "data": {
+          "host": "Endereço IP"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Falha ao conectar. Verifique o IP.",
+      "unknown": "Erro inesperado."
+    },
+    "abort": {
+      "already_configured": "Este dispositivo já está configurado."
+    }
+  }
+}
