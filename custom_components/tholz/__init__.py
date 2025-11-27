@@ -9,7 +9,7 @@ from .hub import TholzHub
 _LOGGER = logging.getLogger(__name__)
 
 # Lista de plataformas que vamos carregar
-PLATFORMS = [Platform.CLIMATE, Platform.SENSOR, Platform.SWITCH, Platform.LIGHT, Platform.NUMBER, Platform.SELECT]
+PLATFORMS = [Platform.CLIMATE, Platform.SENSOR, Platform.BINARY_SENSOR, Platform.SWITCH, Platform.LIGHT, Platform.NUMBER, Platform.SELECT]
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Configura a integração a partir da UI."""
