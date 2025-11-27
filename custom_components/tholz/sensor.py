@@ -10,7 +10,6 @@ from .const import DOMAIN
 _LOGGER = logging.getLogger(__name__)
 
 async def async_setup_entry(hass, entry, async_add_entities):
-    """Configura os sensores via Config Flow."""
     hub = hass.data[DOMAIN][entry.entry_id]
     
     if not hub.data:
@@ -22,55 +21,20 @@ async def async_setup_entry(hass, entry, async_add_entities):
         TholzSensor(hub, "Status", "error_status", "mdi:alert-circle-outline", None),
         TholzSensor(hub, "Firmware", "firmware_version", "mdi:information-outline", None),
         
-        # Status de Aquecimento
-        TholzSensor(
-            hub, 
-            "Aquecendo Agora",
-            "heating_state_text", 
-            "mdi:fire",           
-            None
-        ),
+        # --- O SENSOR DE TEXTO "AQUECENDO" FOI REMOVIDO DAQUI ---
+        # (Agora ele vive no binary_sensor.py)
         
-        # Temperaturas (ÍCONES ATUALIZADOS AQUI)
-        TholzSensor(
-            hub, 
-            "Temperatura Ambiente", 
-            "temp_t1", 
-            "mdi:earth",  # <-- Mudado para Terra
-            UnitOfTemperature.CELSIUS, 
-            SensorDeviceClass.TEMPERATURE, 
-            SensorStateClass.MEASUREMENT
-        ),
-        TholzSensor(
-            hub, 
-            "Temperatura Saída Trocador", 
-            "temp_t2", 
-            "mdi:heat-pump",  # <-- Mudado para Bomba de Calor
-            UnitOfTemperature.CELSIUS, 
-            SensorDeviceClass.TEMPERATURE, 
-            SensorStateClass.MEASUREMENT
-        ),
-        TholzSensor(
-            hub, 
-            "Temperatura Piscina", 
-            "temp_t3", 
-            "mdi:pool", 
-            UnitOfTemperature.CELSIUS, 
-            SensorDeviceClass.TEMPERATURE, 
-            SensorStateClass.MEASUREMENT
-        ),
+        # Temperaturas
+        TholzSensor(hub, "Temperatura Ambiente", "temp_t1", "mdi:earth", UnitOfTemperature.CELSIUS, SensorDeviceClass.TEMPERATURE, SensorStateClass.MEASUREMENT),
+        TholzSensor(hub, "Temperatura Saída Trocador", "temp_t2", "mdi:heat-pump", UnitOfTemperature.CELSIUS, SensorDeviceClass.TEMPERATURE, SensorStateClass.MEASUREMENT),
+        TholzSensor(hub, "Temperatura Piscina", "temp_t3", "mdi:pool", UnitOfTemperature.CELSIUS, SensorDeviceClass.TEMPERATURE, SensorStateClass.MEASUREMENT),
     ]
     async_add_entities(sensors, True)
 
 class TholzSensor(SensorEntity):
-    """Representa um sensor genérico do Tholz."""
-
     def __init__(self, hub, name, attribute, icon, unit, device_class=None, state_class=None):
         self._hub = hub
-        
-        # Nome exato passado na lista
         self._attr_name = name 
-        
         self._attr_unique_id = f"tholz_{hub._host}_{attribute}"
         self._attribute = attribute
         self._attr_icon = icon
@@ -87,5 +51,4 @@ class TholzSensor(SensorEntity):
 
     @property
     def native_value(self):
-        """Retorna o valor do sensor."""
         return getattr(self._hub, self._attribute)
