@@ -22,30 +22,30 @@ async def async_setup_entry(hass, entry, async_add_entities):
         TholzSensor(hub, "Status", "error_status", "mdi:alert-circle-outline", None),
         TholzSensor(hub, "Firmware", "firmware_version", "mdi:information-outline", None),
         
-        # Status de Aquecimento (Renomeado)
+        # Status de Aquecimento
         TholzSensor(
             hub, 
-            "Aquecendo Agora",  # <-- Nome novo
+            "Aquecendo Agora",
             "heating_state_text", 
             "mdi:fire",           
             None
         ),
         
-        # Temperaturas (Renomeadas)
+        # Temperaturas (ÍCONES ATUALIZADOS AQUI)
         TholzSensor(
             hub, 
             "Temperatura Ambiente", 
             "temp_t1", 
-            "mdi:thermometer", 
+            "mdi:earth",  # <-- Mudado para Terra
             UnitOfTemperature.CELSIUS, 
             SensorDeviceClass.TEMPERATURE, 
             SensorStateClass.MEASUREMENT
         ),
         TholzSensor(
             hub, 
-            "Temperatura Saída Trocador",  # <-- Nome novo (era Temp Trocador)
+            "Temperatura Saída Trocador", 
             "temp_t2", 
-            "mdi:thermometer", 
+            "mdi:heat-pump",  # <-- Mudado para Bomba de Calor
             UnitOfTemperature.CELSIUS, 
             SensorDeviceClass.TEMPERATURE, 
             SensorStateClass.MEASUREMENT
@@ -68,8 +68,7 @@ class TholzSensor(SensorEntity):
     def __init__(self, hub, name, attribute, icon, unit, device_class=None, state_class=None):
         self._hub = hub
         
-        # MUDANÇA AQUI: Removemos o prefixo "Tholz " automático.
-        # Agora o nome será exatamente o que foi passado na lista acima.
+        # Nome exato passado na lista
         self._attr_name = name 
         
         self._attr_unique_id = f"tholz_{hub._host}_{attribute}"
