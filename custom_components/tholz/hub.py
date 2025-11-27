@@ -3,6 +3,7 @@ import json
 import logging
 import socket
 
+# Importa as constantes e o DOMAIN
 from .const import PRODUCT_MODELS, ERROR_CODES, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
@@ -12,9 +13,11 @@ class TholzHub:
         self._host = host
         self._port = port
         self.data = {}
+        # Cadeado para controlar o acesso concorrente ao socket
         self._lock = asyncio.Lock()
 
     async def get_device_data(self):
+        """Conecta e atualiza os dados com proteção de Lock."""
         async with self._lock:
             try:
                 reader, writer = await asyncio.wait_for(
@@ -25,6 +28,7 @@ class TholzHub:
                 writer.write(json.dumps(payload).encode())
                 await writer.drain()
 
+                # Buffer aumentado para garantir leitura completa
                 data = await asyncio.wait_for(reader.read(8192), timeout=5.0)
                 response_text = data.decode()
 
@@ -35,6 +39,8 @@ class TholzHub:
                     json_data = json.loads(response_text)
                     if "response" in json_data:
                         self.data = json_data["response"]
+                        # DEBUG: Descomente abaixo se precisar ver o JSON novamente
+                        # _LOGGER.warning(f"THOLZ DEBUG: {json.dumps(self.data)}")
                         return True
             except Exception as e:
                 _LOGGER.warning(f"Tholz desconectado ou ocupado: {e}")
@@ -42,6 +48,7 @@ class TholzHub:
             return False
 
     async def send_command(self, argument):
+        """Envia um comando de ESCRITA com proteção e delay."""
         async with self._lock:
             try:
                 reader, writer = await asyncio.wait_for(
@@ -70,9 +77,11 @@ class TholzHub:
                 _LOGGER.error(f"Erro ao enviar comando Tholz: {repr(e)}")
                 return
 
+        # Delay para o ESP processar e liberar a porta
         await asyncio.sleep(1.0)
         await self.get_device_data()
 
+    # --- Informações do Dispositivo ---
     @property
     def device_info(self):
         return {
@@ -86,13 +95,19 @@ class TholzHub:
     # --- SENSORES DE TEMPERATURA ---
     def _get_temp_value(self, key):
         """Busca temperatura na raiz, em 'heatings/heat0' ou 'temperatures'."""
+        # 1. Tenta na raiz
         val = self.data.get(key)
+
+        # 2. Tenta em heatings -> heat0 (Onde seus dados estavam)
         if val is None:
             heat0 = self.data.get("heatings", {}).get("heat0", {})
             val = heat0.get(key)
+
+        # 3. Tenta em temperatures (Outros modelos)
         if val is None:
             temps = self.data.get("temperatures", {})
             val = temps.get(key)
+            
         if val is not None:
             return val / 10.0
         return None
@@ -104,19 +119,18 @@ class TholzHub:
     @property
     def temp_t3(self): return self._get_temp_value("t3")
 
-    # --- NOVO: Status do Aquecimento (Sim/Não) ---
+    # --- STATUS AQUECIMENTO (Para Sensor Binário) ---
     @property
-    def heating_state_text(self):
-        """Retorna Sim se a saída de aquecimento estiver ativa."""
+    def is_heating_active(self):
+        """Retorna True se estiver aquecendo (saída ligada), False se não."""
         try:
             # Procura em heatings -> heat0 -> on
-            is_on = self.data["heatings"]["heat0"]["on"]
-            return "Sim" if is_on else "Não"
+            return bool(self.data["heatings"]["heat0"]["on"])
         except (KeyError, TypeError):
-            return "Desconhecido"
-    # ---------------------------------------------
+            return False
 
     # --- Propriedades Gerais ---
+
     @property
     def device_model(self):
         model_id = self.data.get("id")
@@ -138,25 +152,41 @@ class TholzHub:
             return tz_seconds / 3600.0
         return None
 
-    # --- Propriedades Climate ---
+    # --- Propriedades Climate (Aquecimento) ---
+
     @property
-    def current_temperature(self): return self.temp_t3
+    def current_temperature(self):
+        # Usa T3 como padrão para o termostato da piscina
+        return self.temp_t3
+
     @property
     def target_temperature(self):
-        try: return self.data["heatings"]["heat0"]["sp"] / 10.0
-        except: return None
+        try:
+            return self.data["heatings"]["heat0"]["sp"] / 10.0
+        except (KeyError, TypeError):
+            return None
+
     @property
     def heating_op_mode(self):
-        try: return self.data["heatings"]["heat0"]["opMode"]
-        except: return 0
+        try:
+            return self.data["heatings"]["heat0"]["opMode"]
+        except (KeyError, TypeError):
+            return 0
+
     @property
     def heating_fan_mode(self):
-        try: return self.data["heatings"]["heat0"]["fanMode"]
-        except:
-            try: return self.data["heatings"]["heat0"]["fanmode"]
-            except: return 1 
+        try:
+            # Tenta com M maiúsculo (Padrão novo)
+            return self.data["heatings"]["heat0"]["fanMode"]
+        except (KeyError, TypeError):
+            try:
+                # Tenta minúsculo (Padrão antigo/Legacy)
+                return self.data["heatings"]["heat0"]["fanmode"]
+            except:
+                return 1 
 
-    # --- Métodos Setters ---
+    # --- MÉTODOS DE ESCRITA (SETTERS) ---
+
     async def set_temperature(self, value):
         val_int = int(value * 10)
         argument = { "heatings": { "heat0": { "sp": val_int } } }
@@ -167,6 +197,7 @@ class TholzHub:
         await self.send_command(argument)
 
     async def set_heating_fan_mode(self, mode):
+        # Envia fanMode (CamelCase)
         argument = { "heatings": { "heat0": { "fanMode": int(mode) } } }
         await self.send_command(argument)
 
@@ -178,14 +209,17 @@ class TholzHub:
         led_data = {}
         if on is not None: led_data["on"] = on
         if brightness is not None: led_data["brightness"] = int((brightness / 255) * 100)
-        if rgb_color is not None: led_data["color"] = list(rgb_color)
+        if rgb_color is not None:
+            led_data["color"] = list(rgb_color)
+            led_data["effect"] = 255 # Força cor fixa ao mudar cor
         if effect is not None: led_data["effect"] = effect
         if speed is not None: led_data["speed"] = int(speed)
 
         argument = { "leds": { led_key: led_data } }
         await self.send_command(argument)
-
+    
     async def set_timezone(self, hours):
+        """Converte horas em segundos e envia."""
         seconds = int(hours * 3600)
         argument = { "timezone": seconds }
         await self.send_command(argument)
