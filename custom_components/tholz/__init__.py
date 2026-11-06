@@ -2,6 +2,7 @@ import logging
 from homeassistant.const import CONF_HOST, Platform
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.device_registry import DeviceEntry
 
 from .const import DOMAIN, DEFAULT_PORT
 from .hub import TholzHub
@@ -29,6 +30,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     
     return True
+
+async def async_remove_config_entry_device(
+    hass: HomeAssistant, entry: ConfigEntry, device_entry: DeviceEntry
+) -> bool:
+    """Permite excluir devices órfãos (qualquer um que não seja o atual)."""
+    current = (DOMAIN, entry.data[CONF_HOST])
+    return current not in device_entry.identifiers
+
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Descarrega a integração."""
